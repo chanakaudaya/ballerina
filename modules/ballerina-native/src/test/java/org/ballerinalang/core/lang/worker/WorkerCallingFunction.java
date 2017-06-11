@@ -51,6 +51,6 @@ public class WorkerCallingFunction {
         BValue[] returns = BLangFunctions.invokeNew(bProgramFile, "testWorkerInVM");
         Assert.assertEquals(returns.length, 1);
         Assert.assertTrue(returns[0] instanceof BInteger);
-        Assert.assertEquals(((BInteger) returns[0]).intValue(), 120);
+        Assert.assertEquals(((BInteger) returns[0]).intValue(), 200);
     }
 }

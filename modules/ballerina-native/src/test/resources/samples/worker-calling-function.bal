@@ -20,7 +20,7 @@ function testWorker()(int) {
   message m;
   m <- default;
   system:println("before calling function");
-  //r = changeMessage(m);
+  r = changeMessage(m);
   system:println("after calling function");
   r -> default;
   return;
@@ -30,5 +30,5 @@ function testWorker()(int) {
 
 function changeMessage(message m)(int) {
       system:println("Within function");
-      return 120;
+      return 200;
 }
