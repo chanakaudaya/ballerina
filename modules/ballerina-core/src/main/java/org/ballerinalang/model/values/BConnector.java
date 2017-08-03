@@ -38,6 +38,7 @@ public final class BConnector implements BRefType, StructureType {
 
     private BConnectorType connectorType;
     private boolean isFilterConnector;
+    private BConnector filteredConnector;
     //private BType connectorType;
 
 
@@ -63,6 +64,14 @@ public final class BConnector implements BRefType, StructureType {
 
     public void setFilterConnector(boolean filterConnector) {
         isFilterConnector = filterConnector;
+    }
+
+    public BConnector getFilteredConnector() {
+        return filteredConnector;
+    }
+
+    public void setFilteredConnector(BConnector filteredConnector) {
+        this.filteredConnector = filteredConnector;
     }
 
     @Override

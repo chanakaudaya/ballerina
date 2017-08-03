@@ -269,6 +269,12 @@ public class BLangModelBuilder {
         error.setImplicitImport(true);
         bFileBuilder.addImportPackage(error);
         importPkgMap.put(error.getName(), error);
+
+        // import ballerina.net.core package implicitly
+//        ImportPackage core = new ImportPackage(null, null, "ballerina.net.core", "@core");
+//        core.setImplicitImport(true);
+//        bFileBuilder.addImportPackage(core);
+//        importPkgMap.put(core.getName(), core);
     }
 
     public void addImportPackage(NodeLocation location, WhiteSpaceDescriptor wsDescriptor,
@@ -953,8 +959,10 @@ public class BLangModelBuilder {
         //int j = 0;
         for (int j = filterNameReferenceList.size() - 1; j >= 0; j--) {
             BLangModelBuilder.NameReference filterNameReference = filterNameReferenceList.get(j);
+            this.resolvePackageFromNameReference(filterNameReference);
+            this.createSimpleVarRefExpr(location, filterNameReference.getWhiteSpaceDescriptor(), filterNameReference);
             SimpleTypeName filterTypeName = new SimpleTypeName(filterNameReference.getName(),
-                    filterNameReference.getPackageName(), null);
+                    filterNameReference.getPackageName(), filterNameReference.getPackagePath());
             List<Expression> argExpr = filterArgExprList.get(j);
             filterTypeName.setWhiteSpaceDescriptor(filterNameReference.getWhiteSpaceDescriptor());
             ConnectorInitExpr filterConnectorInitExpr = new ConnectorInitExpr(location, filterWhiteSpaceDescriptor,

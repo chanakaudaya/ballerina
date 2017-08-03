@@ -66,6 +66,7 @@ public abstract class AbstractNativeAction implements NativeUnit, Action {
     private SimpleTypeName[] returnParamTypeNames;
     private SimpleTypeName[] argTypeNames;
     private String[] argNames;
+    private Action filteredAction;
 
     private int tempStackFrameSize;
 
@@ -120,6 +121,14 @@ public abstract class AbstractNativeAction implements NativeUnit, Action {
             return context.getControlStackNew().getCurrentFrame().getByteLocalVars()[index];
         }
         throw new ArgumentOutOfRangeException(index);
+    }
+
+    public Action getFilteredAction() {
+        return filteredAction;
+    }
+
+    public void setFilteredAction(Action filteredAction) {
+        this.filteredAction = filteredAction;
     }
 
     public abstract BValue execute(Context context);

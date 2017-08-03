@@ -2351,6 +2351,13 @@ public class BLangVM {
                     (BConnectorType) connector.getConnectorType());
             if (connectorInfoFilter != null) {
                 newActionInfo = connectorInfoFilter.getActionInfo(callableUnitInfo.getName());
+                if (newActionInfo == null) {
+                    newActionInfo = connectorInfoFilter.getActionInfo("execute");
+                }
+                if (newActionInfo != null && newActionInfo.getNativeAction() != null) {
+                    newActionInfo.setFilteredActionInfo(callableUnitInfo);
+                    invokeNativeAction(newActionInfo, funcCallCPEntry);
+                }
             } else {
                 String errorMsg = BLangExceptionHelper.getErrorMessage(
                         RuntimeErrors.CONNECTOR_INPUT_TYPES_NOT_EQUIVALENT,
@@ -2793,6 +2800,12 @@ public class BLangVM {
                     (BConnectorType) connector.getConnectorType());
             if (connectorInfoFilter != null) {
                 newActionInfo = connectorInfoFilter.getActionInfo(actionInfo.getName());
+                if (newActionInfo == null) {
+                    newActionInfo = connectorInfoFilter.getActionInfo("execute");
+                    if (newActionInfo.isNative() && newActionInfo.getNativeAction() == null) {
+
+                    }
+                }
             } else {
                 String errorMsg = BLangExceptionHelper.getErrorMessage(
                         RuntimeErrors.CONNECTOR_INPUT_TYPES_NOT_EQUIVALENT,
@@ -2804,7 +2817,9 @@ public class BLangVM {
         }
 
         WorkerInfo defaultWorkerInfo;
+        AbstractNativeAction filteredNativeAction = null;
         if (newActionInfo != null) {
+            filteredNativeAction = actionInfo.getNativeAction();
             actionInfo = newActionInfo;
             defaultWorkerInfo = newActionInfo.getDefaultWorkerInfo();
         } else {
@@ -2818,12 +2833,19 @@ public class BLangVM {
             BType[] retTypes = actionInfo.getRetParamTypes();
             BValue[] returnValues = new BValue[retTypes.length];
 
+            if (filteredNativeAction != null) {
+                nativeAction.setFilteredAction(filteredNativeAction);
+            }
+
             StackFrame caleeSF = new StackFrame(actionInfo, defaultWorkerInfo, ip, null, returnValues);
             copyArgValues(callerSF, caleeSF, funcCallCPEntry.getArgRegs(),
                     actionInfo.getParamTypes());
 
 
             controlStack.pushFrame(caleeSF);
+            if (actionInfo.getFilteredActionInfo() != null) {
+                nativeAction.setFilteredAction(actionInfo.getFilteredActionInfo().getNativeAction());
+            }
 
             try {
                 if (!context.disableNonBlocking && !context.isInTransaction() && nativeAction.isNonBlockingAction()) {

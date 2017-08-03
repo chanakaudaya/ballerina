@@ -50,7 +50,7 @@ import org.wso2.carbon.transport.jms.utils.JMSConstants;
 import java.util.Map;
 
 /**
- * {@code Post} is the send action implementation of the JMS Connector.
+ * {@code Send} is the send action implementation of the JMS Connector.
  */
 @BallerinaAction(
         packageName = "ballerina.net.jms",

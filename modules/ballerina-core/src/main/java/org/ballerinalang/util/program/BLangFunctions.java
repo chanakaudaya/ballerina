@@ -41,6 +41,8 @@ import org.ballerinalang.model.values.BRefType;
 import org.ballerinalang.model.values.BString;
 import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.model.values.BXML;
+import org.ballerinalang.natives.connectors.BallerinaConnectorManager;
+import org.ballerinalang.services.MessageProcessor;
 import org.ballerinalang.util.codegen.FunctionInfo;
 import org.ballerinalang.util.codegen.PackageInfo;
 import org.ballerinalang.util.codegen.ProgramFile;
@@ -111,6 +113,8 @@ public class BLangFunctions {
         if (functionInfo.getParamTypes().length != args.length) {
             throw new RuntimeException("Size of input argument arrays is not equal to size of function parameters");
         }
+
+        BallerinaConnectorManager.getInstance().setMessageProcessor(new MessageProcessor());
 
         ControlStackNew controlStackNew = context.getControlStackNew();
         invokeFunction(bLangProgram, packageInfo.getInitFunctionInfo(), context);

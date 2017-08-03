@@ -440,7 +440,7 @@ public class SemanticAnalyzer implements NodeVisitor {
         }
 
         for (Worker worker : resource.getWorkers()) {
-            addWorkerSymbol(worker);
+            //addWorkerSymbol(worker);
             visit(worker);
         }
 
@@ -471,6 +471,7 @@ public class SemanticAnalyzer implements NodeVisitor {
             String sourceWorkerName;
             String targetWorkerName;
             for (Statement statement : callableUnit.getWorkerInteractionStatements()) {
+                statementCompleted = false;
                 if (statement instanceof WorkerInvocationStmt) {
                     targetWorkerName = ((WorkerInvocationStmt) statement).getName();
                     if (targetWorkerName == "fork" && isForkJoinStmt) {
@@ -483,50 +484,59 @@ public class SemanticAnalyzer implements NodeVisitor {
                     }
                     // Find a matching worker reply statment
                     for (Worker worker : workers) {
-                        if (worker.getWorkerInteractionStatements().peek() instanceof WorkerReplyStmt) {
-                            String complimentSourceWorkerName = ((WorkerReplyStmt) worker.
-                                    getWorkerInteractionStatements().peek()).getWorkerName();
-                            String complimentTargetWorkerName = worker.getName();
-                            if (sourceWorkerName.equals(complimentSourceWorkerName)
-                                    && targetWorkerName.equals(complimentTargetWorkerName)) {
-                                // Statements are matching for their names. Check the parameters
-                                // Check for number of variables send and received
-                                Expression[] invokeParams = ((WorkerInvocationStmt) statement).getExpressionList();
-                                Expression[] receiveParams = ((WorkerReplyStmt) worker.
-                                        getWorkerInteractionStatements().peek()).getExpressionList();
-                                if (invokeParams.length != receiveParams.length) {
-                                    break;
-                                } else {
-                                    int i = 0;
-                                    for (Expression invokeParam : invokeParams) {
-                                        if (!(receiveParams[i++].getType().equals(invokeParam.getType()))) {
-                                            break;
+                        if (statementCompleted) {
+                            break;
+                        }
+                        Statement[] workerInteractions = worker.getWorkerInteractionStatements().
+                                toArray(new Statement[worker.getWorkerInteractionStatements().size()]);
+                        for (Statement workerInteraction : workerInteractions) {
+                            if (workerInteraction instanceof WorkerReplyStmt) {
+                                String complimentSourceWorkerName = ((WorkerReplyStmt) workerInteraction).
+                                        getWorkerName();
+                                String complimentTargetWorkerName = worker.getName();
+                                if (sourceWorkerName.equals(complimentSourceWorkerName)
+                                        && targetWorkerName.equals(complimentTargetWorkerName)) {
+                                    // Statements are matching for their names. Check the parameters
+                                    // Check for number of variables send and received
+                                    Expression[] invokeParams = ((WorkerInvocationStmt) statement).getExpressionList();
+                                    Expression[] receiveParams = ((WorkerReplyStmt) workerInteraction).
+                                            getExpressionList();
+                                    if (invokeParams.length != receiveParams.length) {
+                                        break;
+                                    } else {
+                                        int i = 0;
+                                        for (Expression invokeParam : invokeParams) {
+                                            if (!(receiveParams[i++].getType().equals(invokeParam.getType()))) {
+                                                break;
+                                            }
                                         }
                                     }
-                                }
-                                // Nothing wrong with the statements. Now create the data channel and pop the statement.
-                                String interactionName = sourceWorkerName + "->" + targetWorkerName;
-                                WorkerDataChannel workerDataChannel;
-                                if (!workerDataChannels.containsKey(interactionName)) {
-                                    workerDataChannel = new
-                                            WorkerDataChannel(sourceWorkerName, targetWorkerName);
-                                    workerDataChannels.put(interactionName, workerDataChannel);
-                                } else {
-                                    workerDataChannel = workerDataChannels.get(interactionName);
-                                }
+                                    // Nothing wrong with the statements. Now create the data channel
+                                    // and pop the statement.
+                                    String interactionName = sourceWorkerName + "->" + targetWorkerName;
+                                    WorkerDataChannel workerDataChannel;
+                                    if (!workerDataChannels.containsKey(interactionName)) {
+                                        workerDataChannel = new
+                                                WorkerDataChannel(sourceWorkerName, targetWorkerName);
+                                        workerDataChannels.put(interactionName, workerDataChannel);
+                                    } else {
+                                        workerDataChannel = workerDataChannels.get(interactionName);
+                                    }
 
-                                ((WorkerInvocationStmt) statement).setWorkerDataChannel(workerDataChannel);
-                                ((WorkerReplyStmt) worker.getWorkerInteractionStatements().peek()).
-                                        setWorkerDataChannel(workerDataChannel);
-                                ((WorkerReplyStmt) worker.getWorkerInteractionStatements().peek()).
-                                        setEnclosingCallableUnitName(callableUnit.getName());
-                                callableUnit.addWorkerDataChannel(workerDataChannel);
-                                ((WorkerInvocationStmt) statement).setEnclosingCallableUnitName(callableUnit.getName());
-                                ((WorkerInvocationStmt) statement).setPackagePath(callableUnit.getPackagePath());
-                                worker.getWorkerInteractionStatements().remove();
-                                processedStatements.add(statement);
-                                statementCompleted = true;
-                                break;
+                                    ((WorkerInvocationStmt) statement).setWorkerDataChannel(workerDataChannel);
+                                    ((WorkerReplyStmt) workerInteraction).
+                                            setWorkerDataChannel(workerDataChannel);
+                                    ((WorkerReplyStmt) workerInteraction).
+                                            setEnclosingCallableUnitName(callableUnit.getName());
+                                    callableUnit.addWorkerDataChannel(workerDataChannel);
+                                    ((WorkerInvocationStmt) statement).setEnclosingCallableUnitName(
+                                            callableUnit.getName());
+                                    ((WorkerInvocationStmt) statement).setPackagePath(callableUnit.getPackagePath());
+                                    worker.getWorkerInteractionStatements().remove(workerInteraction);
+                                    processedStatements.add(statement);
+                                    statementCompleted = true;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -539,50 +549,58 @@ public class SemanticAnalyzer implements NodeVisitor {
                     }
                     // Find a matching worker invocation statment
                     for (Worker worker : callableUnit.getWorkers()) {
-                        if (worker.getWorkerInteractionStatements().peek() instanceof WorkerInvocationStmt) {
-                            String complimentTargetWorkerName = ((WorkerInvocationStmt) worker.
-                                    getWorkerInteractionStatements().peek()).getName();
-                            String complimentSourceWorkerName = worker.getName();
-                            if (sourceWorkerName.equals(complimentSourceWorkerName) &&
-                                    targetWorkerName.equals(complimentTargetWorkerName)) {
-                                // Statements are matching for their names. Check the parameters
-                                // Check for number of variables send and received
-                                Expression[] invokeParams = ((WorkerReplyStmt) statement).getExpressionList();
-                                Expression[] receiveParams = ((WorkerInvocationStmt) worker.
-                                        getWorkerInteractionStatements().peek()).getExpressionList();
-                                if (invokeParams.length != receiveParams.length) {
-                                    break;
-                                } else {
-                                    int i = 0;
-                                    for (Expression invokeParam : invokeParams) {
-                                        if (!(receiveParams[i++].getType().equals(invokeParam.getType()))) {
-                                            break;
+                        if (statementCompleted) {
+                            break;
+                        }
+                        Statement[] workerInteractions = worker.getWorkerInteractionStatements().
+                                toArray(new Statement[worker.getWorkerInteractionStatements().size()]);
+                        for (Statement workerInteraction : workerInteractions) {
+                            if (workerInteraction instanceof WorkerInvocationStmt) {
+                                String complimentTargetWorkerName = ((WorkerInvocationStmt) workerInteraction).
+                                        getName();
+                                String complimentSourceWorkerName = worker.getName();
+                                if (sourceWorkerName.equals(complimentSourceWorkerName) &&
+                                        targetWorkerName.equals(complimentTargetWorkerName)) {
+                                    // Statements are matching for their names. Check the parameters
+                                    // Check for number of variables send and received
+                                    Expression[] invokeParams = ((WorkerReplyStmt) statement).getExpressionList();
+                                    Expression[] receiveParams = ((WorkerInvocationStmt) workerInteraction).
+                                            getExpressionList();
+                                    if (invokeParams.length != receiveParams.length) {
+                                        break;
+                                    } else {
+                                        int i = 0;
+                                        for (Expression invokeParam : invokeParams) {
+                                            if (!(receiveParams[i++].getType().equals(invokeParam.getType()))) {
+                                                break;
+                                            }
                                         }
                                     }
-                                }
-                                // Nothing wrong with the statements. Now create the data channel and pop the statement.
-                                String interactionName = sourceWorkerName + "->" + targetWorkerName;
-                                WorkerDataChannel workerDataChannel;
-                                if (!workerDataChannels.containsKey(interactionName)) {
-                                    workerDataChannel = new
-                                            WorkerDataChannel(sourceWorkerName, targetWorkerName);
-                                    workerDataChannels.put(interactionName, workerDataChannel);
-                                } else {
-                                    workerDataChannel = workerDataChannels.get(interactionName);
-                                }
+                                    // Nothing wrong with the statements. Now create the data channel and
+                                    // pop the statement.
+                                    String interactionName = sourceWorkerName + "->" + targetWorkerName;
+                                    WorkerDataChannel workerDataChannel;
+                                    if (!workerDataChannels.containsKey(interactionName)) {
+                                        workerDataChannel = new
+                                                WorkerDataChannel(sourceWorkerName, targetWorkerName);
+                                        workerDataChannels.put(interactionName, workerDataChannel);
+                                    } else {
+                                        workerDataChannel = workerDataChannels.get(interactionName);
+                                    }
 
-                                ((WorkerReplyStmt) statement).setWorkerDataChannel(workerDataChannel);
-                                ((WorkerInvocationStmt) worker.getWorkerInteractionStatements().peek()).
-                                        setWorkerDataChannel(workerDataChannel);
-                                ((WorkerInvocationStmt) worker.getWorkerInteractionStatements().peek()).
-                                        setEnclosingCallableUnitName(callableUnit.getName());
-                                callableUnit.addWorkerDataChannel(workerDataChannel);
-                                ((WorkerReplyStmt) statement).setEnclosingCallableUnitName(callableUnit.getName());
-                                ((WorkerReplyStmt) statement).setPackagePath(callableUnit.getPackagePath());
-                                worker.getWorkerInteractionStatements().remove();
-                                processedStatements.add(statement);
-                                statementCompleted = true;
-                                break;
+                                    ((WorkerReplyStmt) statement).setWorkerDataChannel(workerDataChannel);
+                                    ((WorkerInvocationStmt) workerInteraction).
+                                            setWorkerDataChannel(workerDataChannel);
+                                    ((WorkerInvocationStmt) workerInteraction).
+                                            setEnclosingCallableUnitName(callableUnit.getName());
+                                    callableUnit.addWorkerDataChannel(workerDataChannel);
+                                    ((WorkerReplyStmt) statement).setEnclosingCallableUnitName(callableUnit.getName());
+                                    ((WorkerReplyStmt) statement).setPackagePath(callableUnit.getPackagePath());
+                                    worker.getWorkerInteractionStatements().remove(workerInteraction);
+                                    processedStatements.add(statement);
+                                    statementCompleted = true;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -670,7 +688,7 @@ public class SemanticAnalyzer implements NodeVisitor {
 
         if (!function.isNative()) {
             for (Worker worker : function.getWorkers()) {
-                addWorkerSymbol(worker);
+                //addWorkerSymbol(worker);
                 worker.accept(this);
             }
 
@@ -795,7 +813,7 @@ public class SemanticAnalyzer implements NodeVisitor {
 
         if (!action.isNative()) {
             for (Worker worker : action.getWorkers()) {
-                addWorkerSymbol(worker);
+                //addWorkerSymbol(worker);
                 worker.accept(this);
             }
 
@@ -2111,10 +2129,13 @@ public class SemanticAnalyzer implements NodeVisitor {
             BType filterConnectorType = filterConnectorInitExpr.getFilterSupportedType();
             // Resolve reference connector type if this is a filter connector
             if (filterConnectorType != null && filterConnectorType instanceof BallerinaConnectorDef) {
-                if (!filterConnectorType.equals(inheritedType)) {
-                    BLangExceptionHelper.throwSemanticError(connectorInitExpr,
-                            SemanticErrors.CONNECTOR_TYPES_NOT_EQUIVALENT,
-                            inheritedType, filterConnectorInitExpr.getInheritedType());
+                SymbolName coreConnectorSymbol = new SymbolName("ClientConnector", "ballerina.net.core");
+                if (!coreConnectorSymbol.equals(filterConnectorType.getSymbolName())) {
+                    if (!filterConnectorType.equals(inheritedType)) {
+                        BLangExceptionHelper.throwSemanticError(connectorInitExpr,
+                                SemanticErrors.CONNECTOR_TYPES_NOT_EQUIVALENT,
+                                inheritedType, filterConnectorInitExpr.getInheritedType());
+                    }
                 }
             }
         }
@@ -3405,6 +3426,21 @@ public class SemanticAnalyzer implements NodeVisitor {
         }
     }
 
+    private void defineWorkers(Worker[] workers, CallableUnit callableUnit) {
+        for (Worker worker : workers) {
+
+            SymbolName symbolName = new SymbolName(worker.getName(), null);
+            worker.setSymbolName(symbolName);
+
+            BLangSymbol workerSymbol = callableUnit.getSymbolScope().resolve(symbolName);
+            if (workerSymbol != null) {
+                BLangExceptionHelper.throwSemanticError(worker,
+                        SemanticErrors.REDECLARED_SYMBOL, worker.getName());
+            }
+            callableUnit.getSymbolScope().define(symbolName, worker);
+        }
+    }
+
     private void defineFunctions(Function[] functions) {
         for (Function function : functions) {
             // Resolve input parameters
@@ -3452,6 +3488,10 @@ public class SemanticAnalyzer implements NodeVisitor {
                 returnTypes[i] = bType;
             }
             function.setReturnParamTypes(returnTypes);
+
+            if (function.getWorkers().length > 0) {
+                defineWorkers(function.getWorkers(), function);
+            }
         }
     }
 
@@ -3556,6 +3596,11 @@ public class SemanticAnalyzer implements NodeVisitor {
             returnTypes[i] = bType;
         }
         action.setReturnParamTypes(returnTypes);
+
+
+        if (action.getWorkers().length > 0) {
+            defineWorkers(action.getWorkers(), action);
+        }
     }
 
     private void defineServices(Service[] services) {
@@ -3597,6 +3642,10 @@ public class SemanticAnalyzer implements NodeVisitor {
             BLangExceptionHelper.throwSemanticError(resource, SemanticErrors.REDECLARED_SYMBOL, resource.getName());
         }
         currentScope.define(symbolName, resource);
+
+        if (resource.getWorkers().length > 0) {
+            defineWorkers(resource.getWorkers(), resource);
+        }
     }
 
     private void defineStructs(StructDef[] structDefs) {
@@ -3790,8 +3839,14 @@ public class SemanticAnalyzer implements NodeVisitor {
                         getParentConnectorInitExpr();
                 BType type = null;
                 while (filterConnectorInitExpr != null) {
-                    BLangSymbol symbol = currentPackageScope.resolve(new SymbolName(filterConnectorInitExpr.
-                            getTypeName().getName(), currentPkg));
+                    BLangSymbol symbol;
+                    if (filterConnectorInitExpr.getTypeName().getPackagePath() != null) {
+                        symbol = currentPackageScope.resolve(new SymbolName(filterConnectorInitExpr.
+                                getTypeName().getName(), filterConnectorInitExpr.getTypeName().getPackagePath()));
+                    } else {
+                        symbol = currentPackageScope.resolve(new SymbolName(filterConnectorInitExpr.
+                                getTypeName().getName(), currentPkg));
+                    }
                     if (symbol instanceof BallerinaConnectorDef) {
                         type = (BType) symbol;
                         filterConnectorInitExpr.setInheritedType(type);

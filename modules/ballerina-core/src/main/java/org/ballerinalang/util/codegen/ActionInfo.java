@@ -30,6 +30,7 @@ public class ActionInfo extends CallableUnitInfo {
 
     private AbstractNativeAction nativeAction;
     private ConnectorInfo connectorInfo;
+    private ActionInfo filteredActionInfo;
 
     public ActionInfo(int pkgCPIndex, String pkgPath, int actionNameCPIndex, String actionName,
                       ConnectorInfo connectorInfo) {
@@ -51,7 +52,15 @@ public class ActionInfo extends CallableUnitInfo {
     public ConnectorInfo getConnectorInfo() {
         return connectorInfo;
     }
-    
+
+    public ActionInfo getFilteredActionInfo() {
+        return filteredActionInfo;
+    }
+
+    public void setFilteredActionInfo(ActionInfo filteredActionInfo) {
+        this.filteredActionInfo = filteredActionInfo;
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(pkgCPIndex, nameCPIndex);
