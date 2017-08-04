@@ -20,6 +20,7 @@ package org.ballerinalang.nativeimpl.actions.cb;
 
 import org.ballerinalang.bre.Context;
 import org.ballerinalang.model.types.TypeEnum;
+import org.ballerinalang.model.values.BConnector;
 import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.natives.annotations.Argument;
 import org.ballerinalang.natives.annotations.Attribute;
@@ -73,6 +74,8 @@ public class Execute extends AbstractCBAction {
         logger.debug("Executing Native Action : Execute");
         try {
             // Execute the operation
+            BConnector bConnector = (BConnector) getRefArgument(context, 0);
+            context.getControlStackNew().getCurrentFrame().getRefLocalVars()[0] = bConnector.getRefField(0);
             if (getFilteredAction() != null) {
                 return ((AbstractNativeAction) getFilteredAction()).execute(context);
             }
@@ -89,6 +92,8 @@ public class Execute extends AbstractCBAction {
             logger.debug("Executing Native Action (non-blocking): {}", this.getName());
         }
         try {
+            BConnector bConnector = (BConnector) getRefArgument(context, 0);
+            context.getControlStackNew().getCurrentFrame().getRefLocalVars()[0] = bConnector.getRefField(0);
             // Execute the operation
             if (getFilteredAction() != null) {
                 ((AbstractNativeAction) getFilteredAction()).execute(context, connectorCallback);
@@ -100,5 +105,10 @@ public class Execute extends AbstractCBAction {
             throw new BallerinaException("Failed to invoke 'execute' action in " + "CircuitBreaker"
                     + ". " + t.getMessage(), context);
         }
+    }
+
+    @Override
+    public boolean isNonBlockingAction() {
+        return false;
     }
 }

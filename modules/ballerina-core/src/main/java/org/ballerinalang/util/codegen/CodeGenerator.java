@@ -1784,6 +1784,11 @@ public class CodeGenerator implements NodeVisitor {
         structureRefCPEntry.setStructureTypeInfo(connectorInfo);
         int structureRefCPIndex = currentPkgInfo.addCPEntry(structureRefCPEntry);
 
+        if (connectorInitExpr.getFilterNativeAction() != null) {
+            connectorInfo.getActionInfo("execute").setNativeAction(
+                    (AbstractNativeAction) connectorInitExpr.getFilterNativeAction());
+        }
+
         //Emit an instruction to create a new connector.
         int connectorRegIndex = ++regIndexes[REF_OFFSET];
         ConnectorInitExpr filterConnectorInitExpr = connectorInitExpr.getParentConnectorInitExpr();

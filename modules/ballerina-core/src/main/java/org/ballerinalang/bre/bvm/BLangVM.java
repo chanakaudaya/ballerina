@@ -2802,9 +2802,6 @@ public class BLangVM {
                 newActionInfo = connectorInfoFilter.getActionInfo(actionInfo.getName());
                 if (newActionInfo == null) {
                     newActionInfo = connectorInfoFilter.getActionInfo("execute");
-                    if (newActionInfo.isNative() && newActionInfo.getNativeAction() == null) {
-
-                    }
                 }
             } else {
                 String errorMsg = BLangExceptionHelper.getErrorMessage(
@@ -2818,15 +2815,16 @@ public class BLangVM {
 
         WorkerInfo defaultWorkerInfo;
         AbstractNativeAction filteredNativeAction = null;
+        AbstractNativeAction nativeAction;
         if (newActionInfo != null) {
             filteredNativeAction = actionInfo.getNativeAction();
-            actionInfo = newActionInfo;
-            defaultWorkerInfo = newActionInfo.getDefaultWorkerInfo();
+            //actionInfo = newActionInfo;
+            defaultWorkerInfo = actionInfo.getDefaultWorkerInfo();
+            nativeAction = newActionInfo.getNativeAction();
         } else {
             defaultWorkerInfo = actionInfo.getDefaultWorkerInfo();
+            nativeAction = actionInfo.getNativeAction();
         }
-
-        AbstractNativeAction nativeAction = actionInfo.getNativeAction();
 
         if (nativeAction != null) {
             // TODO : Remove once we handle this properly for return values
@@ -2843,9 +2841,9 @@ public class BLangVM {
 
 
             controlStack.pushFrame(caleeSF);
-            if (actionInfo.getFilteredActionInfo() != null) {
-                nativeAction.setFilteredAction(actionInfo.getFilteredActionInfo().getNativeAction());
-            }
+//            if (actionInfo.getFilteredActionInfo() != null) {
+//                nativeAction.setFilteredAction(actionInfo.getFilteredActionInfo().getNativeAction());
+//            }
 
             try {
                 if (!context.disableNonBlocking && !context.isInTransaction() && nativeAction.isNonBlockingAction()) {

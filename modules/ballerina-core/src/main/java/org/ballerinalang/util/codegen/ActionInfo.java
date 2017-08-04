@@ -19,6 +19,8 @@ package org.ballerinalang.util.codegen;
 
 import org.ballerinalang.natives.connectors.AbstractNativeAction;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -32,6 +34,10 @@ public class ActionInfo extends CallableUnitInfo {
     private ConnectorInfo connectorInfo;
     private ActionInfo filteredActionInfo;
 
+    // This variable holds the method table for this type.
+    protected Map<Integer, Integer> methodTableIndex = new HashMap<>();
+    protected Map<AbstractNativeAction, ActionInfo> methodTableType = new HashMap<>();
+
     public ActionInfo(int pkgCPIndex, String pkgPath, int actionNameCPIndex, String actionName,
                       ConnectorInfo connectorInfo) {
         this.pkgPath = pkgPath;
@@ -39,6 +45,34 @@ public class ActionInfo extends CallableUnitInfo {
         this.name = actionName;
         this.nameCPIndex = actionNameCPIndex;
         this.connectorInfo = connectorInfo;
+    }
+
+    public Map<Integer, Integer> getMethodTableIndex() {
+        return methodTableIndex;
+    }
+
+    public void setMethodTableIndex(Map<Integer, Integer> methodTable) {
+        this.methodTableIndex = methodTable;
+    }
+
+    public void addMethodIndex(int methodNameCPIndex, int ip) {
+        methodTableIndex.put(methodNameCPIndex, new Integer(ip));
+    }
+
+    public void addMethodType(AbstractNativeAction nativeAction, ActionInfo actionInfo) {
+        methodTableType.put(nativeAction, actionInfo);
+    }
+
+    public void setMethodTableType(Map<AbstractNativeAction, ActionInfo> methodTable) {
+        this.methodTableType = methodTable;
+    }
+
+    public ActionInfo getMethodTypeAction(AbstractNativeAction nativeAction) {
+        if (methodTableType.containsKey(nativeAction)) {
+            return methodTableType.get(nativeAction);
+        } else {
+            return null;
+        }
     }
 
     public AbstractNativeAction getNativeAction() {

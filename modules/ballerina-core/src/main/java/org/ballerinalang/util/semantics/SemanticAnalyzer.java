@@ -2125,6 +2125,50 @@ public class SemanticAnalyzer implements NodeVisitor {
 
         ConnectorInitExpr filterConnectorInitExpr = connectorInitExpr.getParentConnectorInitExpr();
         if (filterConnectorInitExpr != null) {
+            if (filterConnectorInitExpr.getInheritedType().isNative() &&
+                    filterConnectorInitExpr.getInheritedType() instanceof BallerinaConnectorDef) {
+                BallerinaConnectorDef ballerinaConnectorDef = (BallerinaConnectorDef)
+                        filterConnectorInitExpr.getInheritedType();
+                BallerinaAction[] ballerinaActions = ballerinaConnectorDef.getActions();
+                for (BallerinaAction ballerinaAction : ballerinaActions) {
+                    if (ballerinaAction.getName().equals("execute")) {
+                        BLangSymbol actionSymbol = ballerinaAction.getNativeAction();
+                        // Load native action
+                        Action action = null;
+                        if (actionSymbol instanceof NativeUnitProxy) {
+                            // Loading return parameter types of this native function
+                            NativeUnit nativeUnit = ((NativeUnitProxy) actionSymbol).load();
+                            SimpleTypeName[] returnParamTypeNames = nativeUnit.getReturnParamTypeNames();
+                            BType[] returnTypes = new BType[returnParamTypeNames.length];
+                            for (int i = 0; i < returnParamTypeNames.length; i++) {
+                                SimpleTypeName typeName = returnParamTypeNames[i];
+                                BType bType = BTypes.resolveType(typeName, currentScope,
+                                        connectorInitExpr.getNodeLocation());
+                                returnTypes[i] = bType;
+                            }
+
+                            if (!(nativeUnit instanceof Action)) {
+                                BLangExceptionHelper.throwSemanticError(connectorInitExpr,
+                                        SemanticErrors.INCOMPATIBLE_TYPES_UNKNOWN_FOUND,
+                                        actionSymbol.getName());
+                            }
+                            action = (Action) nativeUnit;
+                            action.setReturnParamTypes(returnTypes);
+
+                        } else if (actionSymbol instanceof Action) {
+                            action = (Action) actionSymbol;
+                        } else {
+                            BLangExceptionHelper.throwSemanticError(connectorInitExpr,
+                                    SemanticErrors.INCOMPATIBLE_TYPES_UNKNOWN_FOUND,
+                                    actionSymbol.getName());
+                        }
+
+                        filterConnectorInitExpr.setFilterNativeAction(action);
+                        break;
+                    }
+                }
+
+            }
             visit(filterConnectorInitExpr);
             BType filterConnectorType = filterConnectorInitExpr.getFilterSupportedType();
             // Resolve reference connector type if this is a filter connector
