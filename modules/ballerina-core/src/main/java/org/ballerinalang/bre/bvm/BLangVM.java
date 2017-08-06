@@ -2838,12 +2838,7 @@ public class BLangVM {
             StackFrame caleeSF = new StackFrame(actionInfo, defaultWorkerInfo, ip, null, returnValues);
             copyArgValues(callerSF, caleeSF, funcCallCPEntry.getArgRegs(),
                     actionInfo.getParamTypes());
-
-
             controlStack.pushFrame(caleeSF);
-//            if (actionInfo.getFilteredActionInfo() != null) {
-//                nativeAction.setFilteredAction(actionInfo.getFilteredActionInfo().getNativeAction());
-//            }
 
             try {
                 if (!context.disableNonBlocking && !context.isInTransaction() && nativeAction.isNonBlockingAction()) {

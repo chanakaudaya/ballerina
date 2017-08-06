@@ -76,8 +76,11 @@ public class Execute extends AbstractCBAction {
             // Execute the operation
             BConnector bConnector = (BConnector) getRefArgument(context, 0);
             context.getControlStackNew().getCurrentFrame().getRefLocalVars()[0] = bConnector.getRefField(0);
-            if (getFilteredAction() != null) {
-                return ((AbstractNativeAction) getFilteredAction()).execute(context);
+            AbstractNativeAction abstractNativeAction = (AbstractNativeAction) getFilteredAction();
+            if (abstractNativeAction != null) {
+                CircuitBreakerCommand circuitBreakerCommand = new CircuitBreakerCommand(abstractNativeAction, context);
+                return circuitBreakerCommand.execute();
+                //return ((AbstractNativeAction) getFilteredAction()).execute(context);
             }
         } catch (Throwable t) {
             throw new BallerinaException("Failed to invoke 'execute' action in " + "CircuitBreaker"
@@ -94,9 +97,13 @@ public class Execute extends AbstractCBAction {
         try {
             BConnector bConnector = (BConnector) getRefArgument(context, 0);
             context.getControlStackNew().getCurrentFrame().getRefLocalVars()[0] = bConnector.getRefField(0);
-            // Execute the operation
-            if (getFilteredAction() != null) {
-                ((AbstractNativeAction) getFilteredAction()).execute(context, connectorCallback);
+            AbstractNativeAction abstractNativeAction = (AbstractNativeAction) getFilteredAction();
+            if (abstractNativeAction != null) {
+                CircuitBreakerCommand circuitBreakerCommand = new CircuitBreakerCommand(abstractNativeAction,
+                        context, connectorCallback);
+                circuitBreakerCommand.execute();
+                return;
+                //return ((AbstractNativeAction) getFilteredAction()).execute(context);
             }
             //executeNonBlockingAction(context, createCarbonMsg(context), connectorCallback);
             return;
