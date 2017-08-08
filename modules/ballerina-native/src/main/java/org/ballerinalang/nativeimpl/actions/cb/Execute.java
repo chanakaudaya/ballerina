@@ -18,9 +18,13 @@
 
 package org.ballerinalang.nativeimpl.actions.cb;
 
+import com.netflix.hystrix.exception.HystrixBadRequestException;
+import com.netflix.hystrix.exception.HystrixRuntimeException;
+import com.netflix.hystrix.exception.HystrixTimeoutException;
 import org.ballerinalang.bre.Context;
 import org.ballerinalang.model.types.TypeEnum;
 import org.ballerinalang.model.values.BConnector;
+import org.ballerinalang.model.values.BStruct;
 import org.ballerinalang.model.values.BValue;
 import org.ballerinalang.natives.annotations.Argument;
 import org.ballerinalang.natives.annotations.Attribute;
@@ -67,6 +71,17 @@ import org.slf4j.LoggerFactory;
 public class Execute extends AbstractCBAction {
 
     private static final Logger logger = LoggerFactory.getLogger(Execute.class);
+    private String connectorName;
+    private String actionName;
+    private boolean enabled;
+    private long timeoutMillis;
+    private long sleepWindowMillis;
+    private long rollingWindowMillis;
+    private long requestVolumeThreshold;
+    private long errorThresholdPercentage;
+    private long coreSize;
+    private long maxSize;
+    private long maxQueueLength;
 
     @Override
     public BValue execute(Context context) {
@@ -75,16 +90,75 @@ public class Execute extends AbstractCBAction {
         try {
             // Execute the operation
             BConnector bConnector = (BConnector) getRefArgument(context, 0);
-            context.getControlStackNew().getCurrentFrame().getRefLocalVars()[0] = bConnector.getRefField(0);
+            if (bConnector.getRefField(1) != null && bConnector.getRefField(1) instanceof BStruct) {
+                BStruct configuration = (BStruct) bConnector.getRefField(1);
+                enabled = configuration.getBooleanField(0) > 0 ? true : false;
+                timeoutMillis = configuration.getIntField(0) > 0 ? configuration.getIntField(0) :
+                        Constants.DEFAULT_TIMEOUT_MILLIS;
+                sleepWindowMillis = configuration.getIntField(1) > 0 ? configuration.getIntField(1) :
+                        Constants.DEFAULT_SLEEP_WINDOW_MILLIS;
+                rollingWindowMillis = configuration.getIntField(2) > 0 ? configuration.getIntField(2) :
+                        Constants.DEFAULT_ROLLING_WINDOW_MILLIS;
+                requestVolumeThreshold = configuration.getIntField(3) > 0 ? configuration.getIntField(3) :
+                        Constants.DEFAULT_REQUEST_VOLUME_THRESHOLD;
+                errorThresholdPercentage = configuration.getIntField(4) > 0 ? configuration.getIntField(4)
+                         : Constants.DEFAULT_ERROR_PERCENTAGE_THRESHOLD;
+                coreSize = configuration.getIntField(5) > 0 ? configuration.getIntField(5)
+                        : Constants.DEFAULT_CORE_SIZE;
+                maxSize = configuration.getIntField(6) > 0 ? configuration.getIntField(6)
+                        : Constants.DEFAULT_MAX_SIZE;
+                maxQueueLength = configuration.getIntField(7) > 0 ? configuration.getIntField(7)
+                        : Constants.DEFAULT_MAX_QUEUE_LENGTH;
+            }
+            BConnector filteredConnector = (BConnector) bConnector.getRefField(0);
+            filteredConnector.setTimeout(timeoutMillis);
+            connectorName = filteredConnector.getConnectorType().getPackagePath() + ":" +
+                    filteredConnector.getConnectorType().getName();
+            context.getControlStackNew().getCurrentFrame().getRefLocalVars()[0] = filteredConnector;
             AbstractNativeAction abstractNativeAction = (AbstractNativeAction) getFilteredAction();
             if (abstractNativeAction != null) {
-                CircuitBreakerCommand circuitBreakerCommand = new CircuitBreakerCommand(abstractNativeAction, context);
+                actionName = abstractNativeAction.getName();
+                CircuitBreakerCommand circuitBreakerCommand = new CircuitBreakerCommand(abstractNativeAction,
+                        context, enabled, timeoutMillis, sleepWindowMillis, rollingWindowMillis,
+                        requestVolumeThreshold, errorThresholdPercentage, coreSize, maxSize, maxQueueLength);
                 return circuitBreakerCommand.execute();
                 //return ((AbstractNativeAction) getFilteredAction()).execute(context);
             }
         } catch (Throwable t) {
-            throw new BallerinaException("Failed to invoke 'execute' action in " + "CircuitBreaker"
-                    + ". " + t.getMessage(), context);
+            if (t instanceof HystrixBadRequestException) {
+                throw new BallerinaException("Error occurred during execution of circuit breaker for connector: " +
+                        connectorName + " action: " +  actionName + ": failed with " +
+                        t.getMessage(), context);
+            } else if (t instanceof HystrixRuntimeException) {
+                switch(((HystrixRuntimeException) t).getFailureType()) {
+                    case TIMEOUT:
+                        // Execute the timeout handling logic here
+                        throw new BallerinaException("Error occurred during execution of circuit breaker for " +
+                                "connector: " + connectorName + " action: " +  actionName + ": timed out." , context);
+                    case SHORTCIRCUIT:
+                        throw new BallerinaException("Error occurred during execution of circuit breaker for " +
+                                "connector: " + connectorName + " action: " +  actionName + ": short circuited." ,
+                                context);
+                    case COMMAND_EXCEPTION:
+                        throw new BallerinaException("Error occurred during execution of circuit breaker for " +
+                                "connector: " + connectorName + " action: " +  actionName + ": failed with " +
+                                t.getCause().getMessage(), context);
+                    case REJECTED_THREAD_EXECUTION:
+                        throw new BallerinaException("Error occurred during execution of circuit breaker for " +
+                                "connector: " + connectorName + " action: " +  actionName + ": thread was rejected",
+                                context);
+                    case BAD_REQUEST_EXCEPTION:
+                        throw new BallerinaException("Error occurred during execution of circuit breaker for " +
+                                "connector: " + connectorName + " action: " +  actionName + ": failed with " +
+                                t.getMessage(), context);
+                }
+            } else if (t instanceof BallerinaException) {
+                throw new BallerinaException("Error occurred during execution of circuit breaker for connector: " +
+                        connectorName + " action: " +  actionName + ". " + t.getMessage(), context);
+            } else {
+                throw new BallerinaException("Error occurred during execution of circuit breaker for connector: " +
+                        connectorName + " action: " +  actionName + "." , context);
+            }
         }
         return null;
     }
@@ -96,11 +170,37 @@ public class Execute extends AbstractCBAction {
         }
         try {
             BConnector bConnector = (BConnector) getRefArgument(context, 0);
-            context.getControlStackNew().getCurrentFrame().getRefLocalVars()[0] = bConnector.getRefField(0);
+            if (bConnector.getRefField(1) != null && bConnector.getRefField(1) instanceof BStruct) {
+                BStruct configuration = (BStruct) bConnector.getRefField(1);
+                enabled = configuration.getBooleanField(0) > 0 ? true : false;
+                timeoutMillis = configuration.getIntField(0) > 0 ? configuration.getIntField(0) :
+                        Constants.DEFAULT_TIMEOUT_MILLIS;
+                sleepWindowMillis = configuration.getIntField(1) > 0 ? configuration.getIntField(1) :
+                        Constants.DEFAULT_SLEEP_WINDOW_MILLIS;
+                rollingWindowMillis = configuration.getIntField(2) > 0 ? configuration.getIntField(2) :
+                        Constants.DEFAULT_ROLLING_WINDOW_MILLIS;
+                requestVolumeThreshold = configuration.getIntField(3) > 0 ? configuration.getIntField(3) :
+                        Constants.DEFAULT_REQUEST_VOLUME_THRESHOLD;
+                errorThresholdPercentage = configuration.getIntField(4) > 0 ? configuration.getIntField(4)
+                        : Constants.DEFAULT_ERROR_PERCENTAGE_THRESHOLD;
+                coreSize = configuration.getIntField(5) > 0 ? configuration.getIntField(5)
+                        : Constants.DEFAULT_CORE_SIZE;
+                maxSize = configuration.getIntField(6) > 0 ? configuration.getIntField(6)
+                        : Constants.DEFAULT_MAX_SIZE;
+                maxQueueLength = configuration.getIntField(7) > 0 ? configuration.getIntField(7)
+                        : Constants.DEFAULT_MAX_QUEUE_LENGTH;
+            }
+            BConnector filteredConnector = (BConnector) bConnector.getRefField(0);
+            filteredConnector.setTimeout(timeoutMillis);
+            connectorName = filteredConnector.getConnectorType().getPackagePath() + ":" +
+                    filteredConnector.getConnectorType().getName();
+            context.getControlStackNew().getCurrentFrame().getRefLocalVars()[0] = filteredConnector;
             AbstractNativeAction abstractNativeAction = (AbstractNativeAction) getFilteredAction();
             if (abstractNativeAction != null) {
+                actionName = abstractNativeAction.getName();
                 CircuitBreakerCommand circuitBreakerCommand = new CircuitBreakerCommand(abstractNativeAction,
-                        context, connectorCallback);
+                        context, connectorCallback, enabled, timeoutMillis, sleepWindowMillis, rollingWindowMillis,
+                        requestVolumeThreshold, errorThresholdPercentage, coreSize, maxSize, maxQueueLength);
                 circuitBreakerCommand.execute();
                 return;
                 //return ((AbstractNativeAction) getFilteredAction()).execute(context);
@@ -108,9 +208,23 @@ public class Execute extends AbstractCBAction {
             //executeNonBlockingAction(context, createCarbonMsg(context), connectorCallback);
             return;
         } catch (Throwable t) {
-            // This is should be a JavaError. Need to handle this properly.
-            throw new BallerinaException("Failed to invoke 'execute' action in " + "CircuitBreaker"
-                    + ". " + t.getMessage(), context);
+            if (t instanceof HystrixTimeoutException) {
+                // Execute the timeout handling logic here
+                throw new BallerinaException("Error occurred during execution of circuit breaker for connector: " +
+                        connectorName + " action: " +  actionName + " has been timed out ", t.getCause(), context);
+            } else if (t instanceof HystrixRuntimeException) {
+                // Execute the timeout handling logic here
+                throw new BallerinaException("Error occurred during execution of circuit breaker for connector: " +
+                        connectorName + " action: " +  actionName + ".", t.getCause(), context);
+            } else if (t instanceof BallerinaException) {
+                // Execute the timeout handling logic here
+                throw new BallerinaException("Error occurred during execution of circuit breaker for connector: " +
+                        connectorName + " action: " +  actionName + ". " + t.getMessage(), context);
+            } else {
+                // Execute the timeout handling logic here
+                throw new BallerinaException("Error occurred during execution of circuit breaker for connector: " +
+                        connectorName + " action: " +  actionName + "." , context);
+            }
         }
     }
 

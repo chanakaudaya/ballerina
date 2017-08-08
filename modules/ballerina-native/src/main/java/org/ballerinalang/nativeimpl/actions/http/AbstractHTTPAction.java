@@ -48,7 +48,9 @@ public abstract class AbstractHTTPAction extends AbstractNativeAction {
     private static final String BALLERINA_USER_AGENT;
 
     /* Application level timeout */
-    private static final long SENDER_TIMEOUT = 180000; // TODO: Make this configurable with endpoint timeout impl
+    private static final long SENDER_TIMEOUT = 30000; // TODO: Make this configurable with endpoint timeout impl
+
+    private long timeout = -1;
 
     static {
         String version = System.getProperty(BALLERINA_VERSION);
@@ -62,6 +64,12 @@ public abstract class AbstractHTTPAction extends AbstractNativeAction {
     protected void prepareRequest(BConnector connector, String path, CarbonMessage cMsg) {
 
         validateParams(connector);
+
+        if (connector.getTimeout() > 0) {
+            timeout = connector.getTimeout();
+        } else {
+            timeout = SENDER_TIMEOUT;
+        }
 
         // Handle operations for empty content messages initiated from the Ballerina core itself
         if (cMsg instanceof DefaultCarbonMessage && cMsg.isEmpty() && cMsg.getMessageDataSource() == null) {
@@ -154,10 +162,10 @@ public abstract class AbstractHTTPAction extends AbstractNativeAction {
                 synchronized (context) {
                     if (!balConnectorCallback.isResponseArrived()) {
                         logger.debug("Waiting for a response");
-                        context.wait(SENDER_TIMEOUT);
-                        if (System.currentTimeMillis() >= (startTime + SENDER_TIMEOUT)) {
+                        context.wait(timeout);
+                        if (System.currentTimeMillis() >= (startTime + timeout)) {
                             throw new RuntimeException("response was not received within sender timeout of " +
-                                                       SENDER_TIMEOUT / 1000 + " seconds");
+                                                       timeout / 1000 + " seconds");
                         }
                     }
                 }

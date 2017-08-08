@@ -38,48 +38,60 @@ public class CircuitBreakerCommand extends HystrixCommand<BValue> {
     private final Context context;
     private final BalConnectorCallback connectorCallback;
 
-    public CircuitBreakerCommand(AbstractNativeAction action, Context context, BalConnectorCallback connectorCallback) {
+    public CircuitBreakerCommand(AbstractNativeAction action, Context context, BalConnectorCallback connectorCallback,
+                                 boolean enabled, long timeoutMillis, long sleepWindowMillis,
+                                 long rollowingWindowMillis, long requestVolumeThreshold,
+                                 long errorPercentageThreshold, long coreSize, long maxSize, long maxQueueLength) {
         super(Setter
                 .withGroupKey(HystrixCommandGroupKey.Factory.asKey("Ballerina-Resiliency"))
                 .andCommandKey(HystrixCommandKey.Factory.asKey("CircuitBreaker"))
                 .andCommandPropertiesDefaults(
                         HystrixCommandProperties.Setter()
-                                .withExecutionTimeoutInMilliseconds(5000)
-                                .withMetricsHealthSnapshotIntervalInMilliseconds(1000)
-                                .withMetricsRollingStatisticalWindowInMilliseconds(20000)
-                                .withCircuitBreakerSleepWindowInMilliseconds(10000)
+                                .withCircuitBreakerEnabled(enabled)
+                                .withExecutionTimeoutInMilliseconds((int) timeoutMillis)
+                                .withMetricsRollingStatisticalWindowInMilliseconds((int) rollowingWindowMillis)
+                                .withCircuitBreakerSleepWindowInMilliseconds((int) sleepWindowMillis)
+                                .withCircuitBreakerRequestVolumeThreshold((int) requestVolumeThreshold)
+                                .withCircuitBreakerErrorThresholdPercentage((int) errorPercentageThreshold)
                 )
                 .andThreadPoolKey(HystrixThreadPoolKey.Factory.asKey("CircuitBreaker-" + action.getName()))
                 .andThreadPoolPropertiesDefaults(
                         HystrixThreadPoolProperties.Setter()
-                                .withCoreSize(4)
-                                .withMaxQueueSize(10)
+                                .withCoreSize((int) coreSize)
+                                .withMaximumSize((int) maxSize)
+                                .withMaxQueueSize((int) maxQueueLength)
                 ));
         this.action = action;
         this.connectorCallback = connectorCallback;
         this.context = context;
     }
 
-    public CircuitBreakerCommand(AbstractNativeAction action, Context context) {
+    public CircuitBreakerCommand(AbstractNativeAction action, Context context,
+                                 boolean enabled, long timeoutMillis, long sleepWindowMillis,
+                                 long rollowingWindowMillis, long requestVolumeThreshold,
+                                 long errorPercentageThreshold, long coreSize, long maxSize, long maxQueueLength) {
         super(Setter
                 .withGroupKey(HystrixCommandGroupKey.Factory.asKey("Ballerina-Resiliency"))
                 .andCommandKey(HystrixCommandKey.Factory.asKey("CircuitBreaker"))
                 .andCommandPropertiesDefaults(
                         HystrixCommandProperties.Setter()
-                                .withExecutionTimeoutInMilliseconds(5000)
-                                .withMetricsHealthSnapshotIntervalInMilliseconds(1000)
-                                .withMetricsRollingStatisticalWindowInMilliseconds(20000)
-                                .withCircuitBreakerSleepWindowInMilliseconds(10000)
+                                .withCircuitBreakerEnabled(enabled)
+                                .withExecutionTimeoutInMilliseconds((int) timeoutMillis)
+                                .withMetricsRollingStatisticalWindowInMilliseconds((int) rollowingWindowMillis)
+                                .withCircuitBreakerSleepWindowInMilliseconds((int) sleepWindowMillis)
+                                .withCircuitBreakerRequestVolumeThreshold((int) requestVolumeThreshold)
+                                .withCircuitBreakerErrorThresholdPercentage((int) errorPercentageThreshold)
                 )
                 .andThreadPoolKey(HystrixThreadPoolKey.Factory.asKey("CircuitBreaker-" + action.getName()))
                 .andThreadPoolPropertiesDefaults(
                         HystrixThreadPoolProperties.Setter()
-                                .withCoreSize(4)
-                                .withMaxQueueSize(10)
+                                .withCoreSize((int) coreSize)
+                                .withMaximumSize((int) maxSize)
+                                .withMaxQueueSize((int) maxQueueLength)
                 ));
         this.action = action;
-        this.connectorCallback = null;
         this.context = context;
+        this.connectorCallback = null;
     }
 
     @Override
@@ -94,6 +106,23 @@ public class CircuitBreakerCommand extends HystrixCommand<BValue> {
 
 //    @Override
 //    protected BValue getFallback() {
-//        return null;
+//        Throwable t = getExecutionException();
+//        if (t instanceof HystrixTimeoutException) {
+//            // Execute the timeout handling logic here
+//            throw new BallerinaException("Error occurred during execution of circuit breaker. " + action.getName() +
+//                    " timed out ", context);
+//        } else if (t instanceof HystrixRuntimeException) {
+//            // Execute the timeout handling logic here
+//            throw new BallerinaException("Error occurred during execution of circuit breaker for action " +
+//                    action.getName() + "." + ((HystrixRuntimeException) t).getFailureType().toString(), context);
+//        } else if (t instanceof BallerinaException) {
+//            // Execute the timeout handling logic here
+//            throw new BallerinaException("Error occurred during execution of circuit breaker for action " +
+//                    action.getName() + ". " + t.getMessage(), context);
+//        } else {
+//            // Execute the timeout handling logic here
+//            throw new BallerinaException("Error occurred during execution of circuit breaker for action " +
+//                    action.getName() + "." , context);
+//        }
 //    }
 }

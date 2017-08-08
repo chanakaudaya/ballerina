@@ -39,6 +39,7 @@ public final class BConnector implements BRefType, StructureType {
     private BConnectorType connectorType;
     private boolean isFilterConnector;
     private BConnector filteredConnector;
+    private long timeout;
     //private BType connectorType;
 
 
@@ -56,6 +57,14 @@ public final class BConnector implements BRefType, StructureType {
 
     public BType getConnectorType() {
         return connectorType;
+    }
+
+    public long getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(long timeout) {
+        this.timeout = timeout;
     }
 
     public boolean isFilterConnector() {
