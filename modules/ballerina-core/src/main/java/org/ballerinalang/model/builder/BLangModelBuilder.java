@@ -1177,6 +1177,7 @@ public class BLangModelBuilder {
 
         BallerinaAction action = currentCUBuilder.buildAction();
         currentCUGroupBuilder.addAction(action);
+        currentCUGroupBuilder.setNative(isNative);
 
         currentScope = action.getEnclosingScope();
         currentCUBuilder = null;
